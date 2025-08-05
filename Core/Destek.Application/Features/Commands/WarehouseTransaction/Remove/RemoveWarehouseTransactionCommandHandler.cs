@@ -1,0 +1,59 @@
+﻿using Destek.Application.Repositories.ProductRepo;
+using Destek.Application.Repositories.WarehouseTransactionRepo;
+using MediatR;
+using d = Destek.Domain.Entities;
+namespace Destek.Application.Features.Commands.WarehouseTransaction.Remove
+{
+    public class RemoveWarehouseTransactionCommandHandler (IWarehouseTransactionWriteRepository warehouseTransactionWriteRepository, IProductWriteRepository productWriteRepository, IProductReadRepository productReadRepository) : IRequestHandler<RemoveWarehouseTransactionCommandRequest, RemoveWarehouseTransactionCommandResponse>
+    {
+        public async Task<RemoveWarehouseTransactionCommandResponse> Handle(RemoveWarehouseTransactionCommandRequest request, CancellationToken cancellationToken)
+        {
+            d.Product product = await productReadRepository.GetByIdAsync(request.ProductId);
+            if (product == null)
+            {
+                return new()
+                {
+                    Message = $" Hatalı bir işlem yaptınız. Ürün bulunamadı.",
+                    Succeeded = false,
+                };
+            }
+            if(request.Quantity>product.UnitsInStock)
+            {
+                return new()
+                {
+                    Message = $" Depoda {request.Quantity} / {product.UnitOfMeasureType} {product.Name} mevcut değil. Depoda {product.UnitsInStock}/{product.UnitOfMeasureType} var.",
+                    Succeeded = false,
+                };
+            }
+
+            await warehouseTransactionWriteRepository.AddAsync(new()
+            {
+
+                WarehouseId = Guid.Parse(request.WarehouseId),
+                ProductId = Guid.Parse(request.ProductId),
+                Quantity = request.Quantity,
+                TransactionType = request.TransactionType,
+                TicketId=null,
+            });
+
+            if (product != null)
+            {
+                product.UnitsInStock -= request.Quantity;
+                await warehouseTransactionWriteRepository.SaveAsync();
+                //  await ticketAssignWriteRepository.SaveAsync();
+
+                return new()
+                {
+                    Message = $"Depodan {request.Quantity} {product.UnitOfMeasureType} Ürün Çıkarıldı.",
+                    Succeeded = true,
+                };
+            }
+
+            return new()
+            {
+                Message = "Hata oluştu. Lütfen daha sonra tekrar deneyiniz.",
+                Succeeded = false,
+            };
+        }
+    }
+}

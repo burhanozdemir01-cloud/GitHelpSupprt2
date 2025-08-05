@@ -1,0 +1,6 @@
+@Destek.API_HostAddress = http://localhost:5136
+
+GET {{Destek.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
